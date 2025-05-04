@@ -19,6 +19,50 @@ An R Markdown script implementing a workflow for assessing the content validity 
 *   **Centrality Stability Assessment:** Evaluates the stability of the estimated centrality indices using bootstrapping (`bootnet`).
 *   **Reporting:** Generates a PDF or HTML report containing the analysis steps, results, plots (EGA, bootEGA stability, centrality, centrality stability), and the final list of stable items grouped by estimated cluster.
 
+## Prerequisites
+
+To run this analysis, you need R, RStudio (recommended), and a working Python environment with specific libraries.
+
+### 1. Install Miniconda (Recommended Python Distribution)
+
+If you don't have Python or Conda installed, we recommend installing Miniconda:
+*   Download Miniconda: [https://docs.anaconda.com/free/miniconda/](https://docs.anaconda.com/free/miniconda/)
+*   Follow the installation instructions for your operating system.
+*   After installation, open your terminal (Anaconda Prompt on Windows, Terminal on macOS/Linux) and verify the installation by typing `conda --version`.
+
+### 2. Create and Activate a Conda Environment
+
+It's best practice to create a dedicated environment to avoid package conflicts.
+
+```bash
+# Replace 'sna_env' with your preferred environment name
+# Choose a Python version compatible with the required packages (e.g., 3.9, 3.10)
+conda create --name sna_env python=3.9 
+
+# Activate the environment
+conda activate sna_env
+```
+You must activate this environment (conda activate sna_env) every time you want to run the Python-dependent parts or knit the Rmd file in a new session.
+
+### 3. Install Required Python Packages
+
+With the sna_env activated, install the necessary libraries using pip:
+```bash
+pip install sentence-transformers torch torchvision torchaudio 
+# Or use 'pip install sentence-transformers tensorflow' if you prefer TensorFlow
+```
+
+### 4. Configure R/reticulate
+
+The R script uses the reticulate package to interact with Python. You need to tell R where to find the Conda environment you created. Open the semantic_net_analysis.Rmd file and find the setup chunk. Ensure the following line points to your environment name:
+```bash
+# Make sure 'sna_env' matches the name you used in 'conda create'
+reticulate::use_condaenv("sna_env", required = TRUE) 
+
+# If you used venv instead of conda, use use_virtualenv:
+# reticulate::use_virtualenv("/path/to/your/virtual/env", required = TRUE)
+```
+
 ## How it Works
 
 The script follows these primary steps:
