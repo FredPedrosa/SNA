@@ -1,0 +1,712 @@
+---
+title: "Semantic network analysis for Content Validity"
+author: "Prof. Dr. Frederico Pedrosa"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+date: "2025-05-04"
+---
+
+# **Semantic network analysis for item validity** 
+
+This syntax provides an example of how to use the transformer architecture to ensure strong content validity with an AI tool. We apply the AI-GENIE framework (Lasalandra et al., 2025) to represent the thesis of music therapist Antônio Bruno Verga Pinto (2024). The framework is used to evaluate item constructs, which were assessed by experts for children aged 3 to 6 years.
+
+The theoretical dimensions are:
+
+* SENSORIMOTOR
+* SENSORIMOTOR BODY AWARENESS
+* SENSORIMOTOR WITH OBJECTS
+* SENSORIMOTOR WITH ENVIRONMENT
+* RECEPTIVE COMMUNICATION
+* EXPRESSIVE COMMUNICATION
+* ORAL MOTOR SKILLS
+* COGNITIVE ATTENTION/PERCEPTION
+* COGNITIVE MEMORY/EXECUTIVE FUNCTIONS
+* COGNITIVE ACADEMIC SKILLS
+* VISUAL
+* SOCIOEMOTIONAL PARTICIPATION
+* SOCIOEMOTIONAL TURN-TAKING
+* SOCIOEMOTIONAL RELATIONAL SKILLS
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
+
+# Disable colours in thext output 
+options(crayon.enabled = FALSE) 
+ 
+library(reticulate)   # For Python integration
+library(EGAnet)       # For Exploratory Graph Analysis and related methods
+library(psychTools)   # Supporting psychological data analysis tools
+library(psych)        # General functions for personality, psychometric theory
+
+phrases <- c(
+  # 3 to 4 years old - SENSORIMOTOR
+  "Consegue imitar gestos simples associados a músicas espontaneamente?",
+  "Executa coreografias simples que envolvem girar, pular e abraçar?",
+  "Imita animais corporalmente e vocalmente durante atividades musicais?",
+  "Participa ativamente de brincadeiras de roda?",
+  "Consegue marcar o pulso de uma música quicando uma bola?",
+  "Coloca líquidos em recipientes sem ajuda, por exemplo, em um vidrofone?",
+  "Chacoalha o maraca utilizando ambas as mãos?",
+  "Segura uma baqueta e toca instrumentos com ambas as mãos simultaneamente?",
+  "Locomove-se pelo ambiente transportando instrumentos musicais?",
+  "Escala objetos como cadeiras ou árvores durante atividades musicais?",
+  "Desvia de objetos enquanto se movimenta pelo ambiente?",
+  "Utiliza bem o espaço durante jogos musicais?",
+  
+  # 3 to 4 years old - RECEPTIVE COMMUNICATION
+  "Reconhece a voz cantada masculina da voz feminina?",
+  "Reconhece as 'vozes' dos personagens de desenho (ex: Mickey no tablet sem ver)?",
+  "Demonstra habilidade de separação binaural, escutando com uma orelha e ignorando a oposta (fone de ouvido)?",
+  "Apresenta habilidade de figura/fundo, identificando a mensagem primária na presença de sons competitivos?",
+  
+  # 3 to 4 years old - EXPRESSIVE COMMUNICATION
+  "Expressa ideias sobre diversas situações?",
+  "Canta músicas simples?",
+  "Completa as frases das canções?",
+  "Demonstra habilidade de separação binaural, escutando com uma orelha e ignorando a oposta (fone de ouvido)?",
+  
+  # 3 to 4 years old - ORAL MOTOR SKILLS
+  "Apresenta uma respiração apropriada para sua idade?",
+  "Sopra um instrumento de sopro sem dificuldade?",
+  "Articula bem trava-línguas simples?",
+  "Articula bem as parlendas?",
+  
+  # 3 to 4 years old - COGNITIVE ATTENTION/PERCEPTION
+  "Faz comando conforme a letra da música?",
+  "Foca em uma atividade até concluí-la?",
+  "Atenção dividida: toca um instrumento e canta simultaneamente?",
+  "Atenção alternada: toca os instrumentos conforme é citado na música? (ex: Loja do Mestre André)",
+  
+  # 3 to 4 years old - COGNITIVE MEMORY/EXECUTIVE FUNCTIONS
+  "Conta episódio do dia?",
+  "Conta episódio de data passada (semana passada, final de semana, aniversário, viagem etc)?",
+  "Lembra de regras de jogos (jogo da memória musical)?",
+  "Amarra o cadarço ou desabotoa um botão?",
+  
+  # 3 to 4 years old - COGNITIVE ACADEMIC SKILLS
+  "Apresenta interesse por atividades pedagógicas?",
+  "Faz uso funcional dos objetos acadêmicos (lápis, giz de cera, tesoura)?",
+  "Sabe fazer contas de somar?",
+  "Sabe fazer conta de subtrair?",
+  
+  # 3 to 4 years old - VISUAL
+  "Tenta copiar círculos (Tambor) e retas (Flauta)?",
+  "Tenta copiar formas geométricas? Círculo (Pandeiro), Retângulo (Teclado), Triângulo (Triângulo)?",
+  "Emparelha os instrumentos do menor para o maior?",
+  "Emparelha os instrumentos do maior para o menor?",
+  "Separa os instrumentos por cores?",
+  "Apresenta percepção de profundidade?",
+  "Pinta dentro dos desenhos?",
+  "Reconhece instrumentos musicais visualmente?",
+  "Segue com os olhos os movimentos de objetos?",
+  "Distingue entre diferentes instrumentos com base em suas formas e tamanhos?",
+  
+  # 3 to 4 years old - SOCIOEMOTIONAL PARTICIPATION
+  "Gosta de fazer coisas novas?",
+  "É participativo no ambiente?",
+  "Pede para ir ao banheiro ou beber água?",
+  "Brinca de faz de conta mais complexo, como história?",
+  
+  # 3 to 4 years old - SOCIOEMOTIONAL TURN-TAKING
+  "Reveza em brincadeiras?",
+  "Sabe esperar pela vez?",
+  "Entrega um material quando é solicitado?",
+  "Respeita o tempo de atividade do colega?",
+  
+  # 3 to 4 years old - SOCIOEMOTIONAL RELATIONAL SKILLS
+  "Mantém uma relação amistosa com o grupo?",
+  "Vivencia jogos simbólicos em suas brincadeiras?",
+  "Utiliza o diálogo para resolver seus conflitos?",
+  "Respeita os combinados de sala?",
+  
+  # 4 to 5 years old - SENSORIMOTOR BODY AWARENESS
+  "Consegue dar cambalhota ou estrelinha?",
+  "Reconhece diferentes sons produzidos pela boca?",
+  "Reconhece diferentes sons produzidos pelo corpo?",
+  "Faz diferentes sons bocais (beijo, estalo de língua, estalo de bochecha, etc.)?",
+  
+  # 4 to 5 years old - SENSORIMOTOR WITH OBJECTS
+  "Segura a baqueta e toca com ambas as mãos alternadamente?",
+  "Toca o xilofone com ambas as mãos?",
+  "Pincela as cordas do violão uma de cada vez com a mão direita?",
+  "Domina jogos com bambolês e dança da cadeira?",
+  
+  # 4 to 5 years old - SENSORIMOTOR WITH ENVIRONMENT
+  "Demonstra planejamento da coreografia em diferentes espaços (sala para palco)?",
+  "Demonstra planejamento de cenas teatrais (musicais) em diferentes espaços?",
+  "Marcha e toca instrumentos simultaneamente sem perder o pulso?",
+  "Participa de atividades que envolvem escalar e descer de objetos de maneira segura e controlada?",
+  
+  # 4 to 5 years old - RECEPTIVE COMMUNICATION
+  "Demonstra habilidade para determinar se dois estímulos são iguais ou diferentes?",
+  "Apresenta memória auditiva, estocando e recuperando estímulos?",
+  "Se familiariza com canções e letras simples?",
+  "Diferencia tempos curtos e longos (semínima e colcheias)?",
+  
+  # 4 to 5 years old - EXPRESSIVE COMMUNICATION
+  "O volume da voz da criança é apropriado?",
+  "Sustenta um som por mais de 5 segundos?",
+  "Responde perguntas abertas (como é a...)?",
+  "Conta histórias com começo, meio e fim?",
+  
+  # 4 to 5 years old - ORAL MOTOR SKILLS
+  "Articula bem o 'S' no final da sílaba? (Testa, Festa, Pasto)",
+  "Articula bem o 'L' e o 'R' em encontros consonantais? (Planeta, Branco)",
+  "Sustenta um som vocálico durante 7 segundos?",
+  "O andamento rápido da fala compromete o entendimento da mensagem?",
+  
+  # 4 to 5 years old - COGNITIVE ATTENTION/PERCEPTION
+  "Apresenta uma boa percepção em relação a diferentes timbres?",
+  "Apresenta uma boa percepção em relação ao volume?",
+  "Apresenta uma boa percepção em relação à duração do som?",
+  "Apresenta uma boa percepção entre o grave e agudo?",
+  
+  # 4 to 5 years old - COGNITIVE MEMORY/EXECUTIVE FUNCTIONS
+  "Come sem ajuda de terceiros?",
+  "Organiza a sala sem ajuda?",
+  "Apresenta noção de tempo (relógio, dia da semana, noite e dia etc)?",
+  "Toca melodias simples ensinadas em encontros passados (sistema de representação perceptiva)?",
+  
+  # 4 to 5 years old - COGNITIVE ACADEMIC SKILLS
+  "Desenha com clareza uma ideia? (casa, pessoa, animal, sol etc)",
+  "Copia letra de forma?",
+  "Conhece a família dos instrumentos?",
+  "Compreende anotações musicais simples?",
+  
+  # 4 to 5 years old - VISUAL
+  "Tenta copiar círculos (Tambor) e retas (Flauta)?",
+  "Tenta copiar formas geométricas? Círculo (Pandeiro), Retângulo (Teclado), Triângulo (Triângulo)?",
+  "Emparelha os instrumentos do menor para o maior?",
+  "Emparelha os instrumentos do maior para o menor?",
+  "Separa os instrumentos por cores?",
+  "Apresenta percepção de profundidade?",
+  "Pinta dentro dos desenhos?",
+  "Cobre um desenho com precisão?",
+  "Sabe diferenciar as cores secundárias?",
+  "Escreve o nome dentro de um retângulo?",
+  
+  # 4 to 5 years old - SOCIOEMOTIONAL PARTICIPATION
+  "Aponta para mostrar às outras pessoas algo interessante?",
+  "Fica empolgado quando está com outras crianças?",
+  "Possui cuidado com o material da sala de música?",
+  "Cumpre os horários de início e término das aulas?",
+  
+  # 4 to 5 years old - SOCIOEMOTIONAL TURN-TAKING
+  "Reveza em brincadeiras sem dificuldade?",
+  "Respeita a ordem da fila?",
+  "Entrega um instrumento musical quando é solicitado?",
+  "Toma iniciativa chamando os demais amigos para brincar?",
+  
+  # 4 to 5 years old - SOCIOEMOTIONAL RELATIONAL SKILLS
+  "Sabe se defender dos colegas quando há necessidade?",
+  "Inicia conversas de forma contextualizada?",
+  "Faz carinho quando é solicitado?",
+  "Ajuda o colega a pegar um objeto?",
+  
+  # 5 to 6 years old - SENSORIMOTOR BODY AWARENESS
+  "Consegue fazer um acompanhamento com percussão corporal simples?",
+  "Consegue fazer um acompanhamento com percussão corporal moderado?",
+  "Consegue dançar livremente?",
+  "Consegue fazer coreografia sem dificuldade?",
+  
+  # 5 to 6 years old - SENSORIMOTOR WITH OBJECTS
+  "Consegue tocar as teclas do teclado individualmente com todos os dedos da mão direita?",
+  "Consegue tocar as teclas do teclado individualmente com todos os dedos da mão esquerda?",
+  "Consegue tocar dois instrumentos ao mesmo tempo?",
+  "Consegue tocar três instrumentos ao mesmo tempo?",
+  
+  # 5 to 6 years old - SENSORIMOTOR WITH ENVIRONMENT
+  "Consegue dominar jogos com bambolês e dança da cadeira?",
+  "Consegue demonstrar planejamento da coreografia em diferentes espaços (sala para palco)?",
+  "Consegue demonstrar planejamento de cenas teatrais (musicais) em diferentes espaços?",
+  "Consegue marchar e tocar instrumentos simultaneamente sem perder o pulso?",
+  
+  # 5 to 6 years old - RECEPTIVE COMMUNICATION
+  "Identifica instrumentos em músicas editadas?",
+  "Identifica ritmo musical? (Rock, samba)",
+  "Reconhece uma palavra de outro idioma (Muchas gracias, Thank you)?",
+  "Reconhece paisagens sonoras (chuva, selva, praia, etc)?",
+  
+  # 5 to 6 years old - EXPRESSIVE COMMUNICATION
+  "Utiliza-se da linguagem para adquirir o que deseja?",
+  "Ensina brincadeiras a terceiros sem dificuldade?",
+  "Fala ao microfone sem dificuldade?",
+  "Canta músicas mais complexas (andamento rápido, que exige mais vocabulário)?",
+  
+  # 5 to 6 years old - ORAL MOTOR SKILLS
+  "O discurso da criança é inteligível?",
+  "Articula bem os trava-línguas compostos?",
+  "Emprega corretamente verbos no discurso?",
+  "Extensão vocal apropriada para uma criança de 6 anos?",
+  
+  # 5 to 6 years old - COGNITIVE ATTENTION/PERCEPTION
+  "Conhece o momento certo das entradas da música quando está cantando em um playback?",
+  "Faz regência simples?",
+  "Apresenta controle em sua atenção seletiva (concentração)?",
+  "Apresenta controle em sua atenção compartilhada (duas ações simultaneamente)?",
+  
+  # 5 to 6 years old - COGNITIVE MEMORY/EXECUTIVE FUNCTIONS
+  "Faz tarefinhas sozinho?",
+  "Aprende palavras novas com facilidade?",
+  "Recorda letra de música só pela melodia?",
+  "Recorda nome de música associando-a ao seu compositor?",
+  
+  # 5 to 6 years old - COGNITIVE ACADEMIC SKILLS
+  "Sabe fazer contas de multiplicar simples?",
+  "Sabe fazer conta de dividir simples?",
+  "É alfabetizado?",
+  "Escreve texto simples de 4 linhas?",
+  
+  # 5 to 6 years old - VISUAL
+  "Encontra as respostas no jogo dos 7 erros em tempo hábil?",
+  "Encontra as respostas no jogo de caça palavras em tempo hábil?",
+  "Consegue andar em linha reta com tapa olho no lado esquerdo?",
+  "Consegue andar em linha reta com tapa olho no lado direito?",
+  "Cobre um desenho com precisão?",
+  "Sabe diferenciar as cores secundárias?",
+  "Escreve o nome dentro de um retângulo?",
+  "Acerta um alvo com objeto?",
+  "Emparelha instrumentos de diferentes tamanhos do menor para o maior?",
+  "Copia formas geométricas simples, como círculos e triângulos?",
+  
+  # 5 to 6 years old - SOCIOEMOTIONAL PARTICIPATION
+  "Utiliza o uso de 'por favor' e 'obrigado(a)' nas situações oportunas do cotidiano?",
+  "Identifica os símbolos e placas?",
+  "Ajuda a arrumar o setting?",
+  "Representa a turma quando é solicitado?",
+  
+  # 5 to 6 years old - SOCIOEMOTIONAL TURN-TAKING
+  "Demonstra maturidade quando ganha um jogo, não ofendendo ou menosprezando os colegas?",
+  "Demonstra maturidade quando perde um jogo, não ofendendo o colega?",
+  "Segue a lista de atividades sem dificuldade?",
+  "Demonstra respeito com outros profissionais?",
+  
+  # 5 to 6 years old - SOCIOEMOTIONAL RELATIONAL SKILLS
+  "Compartilha instrumentos musicais?",
+  "Sabe lidar com situação quando não 'vence' uma brincadeira?",
+  "Tem um ciclo de colegas dentro de um grupo maior?",
+  "Inicia conversas de forma contextualizada?",
+  
+  # 6 to 7 years old - SENSORIMOTOR BODY AWARENESS
+  "Faz um acompanhamento com percussão corporal simples?",
+  "Faz um acompanhamento com percussão corporal moderado?",
+  "Dança livremente?",
+  "Faz coreografia sem dificuldade?",
+  
+  # 6 to 7 years old - SENSORIMOTOR WITH OBJECTS
+  "Consegue marcar um pulso com uma bola quicando somente com uma mão?",
+  "Acompanha uma música com um instrumento de percussão?",
+  "Consegue tocar um instrumento envolvendo pés e mãos alternadamente?",
+  "Consegue tocar um instrumento envolvendo pés e mãos simultaneamente?",
+  
+  # 6 to 7 years old - SENSORIMOTOR WITH ENVIRONMENT
+  "Locomove-se pelo ambiente com os instrumentos em mãos (transporta)?",
+  "Escala em objetos (cadeira, árvore)?",
+  "Desvia dos objetos?",
+  "Utiliza bem o espaço nos jogos musicais? (ex: Corre cotia; quente/frio)",
+  
+  # 6 to 7 years old - RECEPTIVE COMMUNICATION
+  "Consegue seguir instruções musicais com duas ou três etapas, como 'Bata o pé, bata palmas, depois toque o tambor'?",
+  "Entende e consegue responder a perguntas simples sobre letras de músicas?",
+  "Consegue identificar e reagir melhor às mudanças de ritmo, melodia ou volume de uma música?",
+  "Apresenta preferências musicais ao ouvir uma música?",
+  
+  # 6 to 7 years old - EXPRESSIVE COMMUNICATION
+  "Consegue criar e cantar frases musicais completas e consistentes, usando variações de ritmo e melodia?",
+  "Usa uma variedade de palavras para criar suas próprias letras de músicas ou para descrever sentimentos através de canções?",
+  "Consegue criar uma pequena história ou narrativa através de uma sequência de sons ou uma composição musical?",
+  "Participa ativamente de atividades musicais em grupo, contribuindo com ideias?",
+  
+  # 6 to 7 years old - COGNITIVE ATTENTION/PERCEPTION
+  "Consegue bater palmas em um ritmo constante por um minuto?",
+  "Consegue identificar quando uma música muda de estilo (por exemplo, de rock para samba)?",
+  "Consegue imitar ritmos simples?",
+  "Percebe mudanças de volume na música?",
+  
+  # 6 to 7 years old - SOCIOEMOTIONAL TURN-TAKING
+  "Demonstra maturidade quando ganha um jogo, não ofendendo ou menosprezando os colegas?",
+  "Demonstra maturidade quando perde um jogo, não ofendendo o colega?",
+  "Segue a lista de atividades sem dificuldade?",
+  "Demonstra respeito com outros profissionais?",
+  
+  # 6 to 7 years old - SOCIOEMOTIONAL RELATIONAL SKILLS
+  "Compartilha instrumentos musicais?",
+  "Sabe lidar com situação quando não 'vence' uma brincadeira?",
+  "Tem um ciclo de colegas dentro de um grupo maior?",
+  "Inicia conversas de forma contextualizada?"
+)
+
+
+```
+
+### **1. Load libraries and Preprocess Items**
+
+```{r}
+raw_items <- phrases 
+
+# Define indices of items to be removed based on prior manual review
+# Categories: non-musical, problematic (validity/clarity issues), duplicates/redundant
+initial_item_removal_indices <- c(
+  # Non-musical content items
+  6, 10, 11, 17, 21, 23, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 45, 47,
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 87, 88, 89, 91, 92, 133, 139, 145, 172:174, 179:186,
+  # Problematic items (ambiguity, difficult interpretation, etc.)
+  7, 15, 65, 68, 72, 77, 82, 93, 94, 95:116, 124, 131, 137, 138, 149:170,
+  # Duplicate or highly redundant items identified manually
+  20, 95, 125:128, 193, 194, 196, 199:206 
+)
+
+# Remove the specified items
+filtered_items <- raw_items[-initial_item_removal_indices]
+
+# Identify and remove any remaining exact duplicate phrases
+unique_phrases <- unique(filtered_items)
+n_unique_phrases <- length(unique_phrases)
+
+print(paste("Number of unique phrases after initial filtering and deduplication:", n_unique_phrases)) 
+```
+### **2. Generate Sentence Embeddings**
+
+```{r}
+
+# Specify the dedicated Python virtual environment for sentence-transformers
+# Adjust the path to your virtual environment if necessary
+use_virtualenv("~/Brysa/.venv_st_ega", required = TRUE)
+
+# Import the sentence-transformers library
+# delay_load = FALSE ensures it loads immediately to catch errors early
+st_module <- import("sentence_transformers", delay_load = FALSE) 
+SentenceTransformer <- st_module$SentenceTransformer
+
+# Define the pre-trained sentence embedding model
+# 'paraphrase-multilingual-mpnet-base-v2' is suitable for multiple languages
+embedding_model_name <- 'paraphrase-multilingual-mpnet-base-v2' 
+
+# Load the sentence transformer model
+st_model <- SentenceTransformer(embedding_model_name)
+
+# Encode the unique phrases into numerical embeddings
+phrase_embeddings_matrix <- st_model$encode(unique_phrases)
+print("Embeddings generated.")
+```
+
+### **3. Format Data for EGAnet**
+```{r}
+# Following the AI-GENIE paper: treat items as variables (columns) and 
+# embedding dimensions as observations (rows).
+
+# Transpose the matrix: Dimensions x Items
+embeddings_matrix_transposed <- t(phrase_embeddings_matrix)
+
+# Convert to a data frame suitable for EGAnet
+embeddings_df_transposed <- as.data.frame(embeddings_matrix_transposed)
+
+# Assign meaningful column names (representing the items)
+item_colnames <- paste0("i", 1:n_unique_phrases) 
+colnames(embeddings_df_transposed) <- item_colnames
+
+# Verify dimensions and structure
+print("Dimensions of the data frame for EGA (Embedding Dimensions x Items):")
+print(dim(embeddings_df_transposed)) 
+
+```
+
+### **4. Iterative Item Reduction using UVA and bootEGA**
+```{r}
+# Set seed for reproducibility of bootstrap analysis
+set.seed(123) 
+
+# --- Iteration 1 ---
+print("--- Starting Iteration 1 of UVA and bootEGA ---")
+current_data_iter1 <- embeddings_df_transposed
+
+# Step 3 (AI-GENIE): Unique Variable Analysis to remove redundant items
+# Using default settings initially (cutoff might be adjusted based on AI-GENIE paper if needed)
+print("Running UVA Iteration 1...")
+uva_results_iter1 <- UVA(data = current_data_iter1, verbose = FALSE) 
+print(paste("UVA Iteration 1 completed. Items kept:", ncol(uva_results_iter1$reduced_data)))
+# print(uva_results_iter1$keep_remove) # Uncomment to see details
+
+# Store data after UVA reduction
+data_after_uva_iter1 <- uva_results_iter1$reduced_data
+
+# Step 5 (AI-GENIE): Bootstrap EGA to assess item stability
+print("Running bootEGA Iteration 1...")
+bootEGA_results_iter1 <- bootEGA(
+  data = data_after_uva_iter1, 
+  iter = 500, # Standard number of iterations, adjust if needed
+  type = "parametric", # Or "resampling"
+  model = "glasso", # As used later, keep consistent
+  seed = 123      # Ensure reproducibility within bootEGA too
+)
+print("bootEGA Iteration 1 completed.")
+
+# Extract item stability proportions (empirical dimension stability)
+item_stability_proportions_iter1 <- bootEGA_results_iter1$stability$item.stability$item.stability$empirical.dimensions
+
+# Define the stability threshold (as per AI-GENIE paper or standard practice)
+stability_threshold <- 0.75 
+
+# Identify stable and unstable items
+stable_items_iter1 <- names(item_stability_proportions_iter1[item_stability_proportions_iter1 >= stability_threshold])
+unstable_items_iter1 <- names(item_stability_proportions_iter1[item_stability_proportions_iter1 < stability_threshold])
+
+print(paste("Number of stable items (>= 0.75) after Iteration 1:", length(stable_items_iter1)))
+print(paste("Number of unstable items (< 0.75) after Iteration 1:", length(unstable_items_iter1)))
+if (length(unstable_items_iter1) > 0) {
+  print("Unstable items to be removed for next iteration:")
+  print(unstable_items_iter1)
+}
+
+# Create the dataset for the next iteration, keeping only stable items
+if (length(stable_items_iter1) > 0) {
+  stable_items_data_iter1 <- data_after_uva_iter1[, stable_items_iter1, drop = FALSE]
+  print("Dimensions of stable data after Iteration 1 (Dimensions x Stable Items):")
+  print(dim(stable_items_data_iter1))
+} else {
+  stop("No stable items found after Iteration 1. Stopping.")
+}
+
+```
+
+#### **Iteration 2**
+
+
+```{r}
+# Check if there were unstable items removed in the previous step
+if (length(unstable_items_iter1) == 0) {
+  print("--- No unstable items removed in Iteration 1. Skipping further iterations. ---")
+  final_stable_data <- stable_items_data_iter1
+  # We still need a final EGA run on this stable set
+  print("Running final EGA on stable data from Iteration 1...")
+  final_ega_run <- EGA(data = final_stable_data, model = "glasso", verbose = FALSE)
+} else {
+  print("--- Starting Iteration 2 of UVA and bootEGA ---")
+  current_data_iter2 <- stable_items_data_iter1
+  
+  print("Running UVA Iteration 2...")
+  uva_results_iter2 <- UVA(data = current_data_iter2, verbose = FALSE) 
+  print(paste("UVA Iteration 2 completed. Items kept:", ncol(uva_results_iter2$reduced_data)))
+  data_after_uva_iter2 <- uva_results_iter2$reduced_data
+  
+  print("Running bootEGA Iteration 2...")
+  bootEGA_results_iter2 <- bootEGA(
+    data = data_after_uva_iter2, 
+    iter = 500, type = "parametric", model = "glasso", seed = 123
+  )
+  print("bootEGA Iteration 2 completed.")
+  
+  item_stability_proportions_iter2 <- bootEGA_results_iter2$stability$item.stability$item.stability$empirical.dimensions
+  stable_items_iter2 <- names(item_stability_proportions_iter2[item_stability_proportions_iter2 >= stability_threshold])
+  unstable_items_iter2 <- names(item_stability_proportions_iter2[item_stability_proportions_iter2 < stability_threshold])
+  
+  print(paste("Number of stable items (>= 0.75) after Iteration 2:", length(stable_items_iter2)))
+  print(paste("Number of unstable items (< 0.75) after Iteration 2:", length(unstable_items_iter2)))
+  if (length(unstable_items_iter2) > 0) {
+    print("Unstable items to be removed for next iteration:")
+    print(unstable_items_iter2)
+  }
+  
+  if (length(stable_items_iter2) > 0) {
+    stable_items_data_iter2 <- data_after_uva_iter2[, stable_items_iter2, drop = FALSE]
+    print("Dimensions of stable data after Iteration 2 (Dimensions x Stable Items):")
+    print(dim(stable_items_data_iter2))
+  } else {
+    stop("No stable items found after Iteration 2. Stopping.")
+  }
+}
+
+
+```
+  
+#### **Iteration 3**
+
+```{r}
+    if (length(unstable_items_iter2) == 0) {
+    # (Code for when no items were unstable in Iteration 2 - already correct)
+    print("--- No unstable items removed in Iteration 2. Preparing for final analysis. ---")
+    final_stable_data <- stable_items_data_iter2
+    print("Running final EGA on stable data from Iteration 2...")
+    final_ega_run <- EGA(data = final_stable_data, model = "glasso", verbose = FALSE)
+    
+  } else { # This else block handles the case where Iteration 3 is needed
+    print("--- Starting Iteration 3 of UVA and bootEGA ---")
+    current_data_iter3 <- stable_items_data_iter2
+    
+    # Note: UVA might not remove more items at this stage, but we run it for consistency.
+    print("Running UVA Iteration 3...")
+    uva_results_iter3 <- UVA(data = current_data_iter3, verbose = FALSE) 
+    
+    # Check if the reduced_data is NULL OR has 0 columns
+    if (is.null(uva_results_iter3$reduced_data) || ncol(uva_results_iter3$reduced_data) == 0) {
+      # Handle the case where UVA removed all remaining items or returned NULL
+      print("UVA Iteration 3 completed. No valid items remain after UVA.") 
+      print("Using stable data from Iteration 2 as the final dataset.")
+      final_stable_data <- stable_items_data_iter2 # Use data *before* this UVA run
+      print("Running final EGA on stable data from Iteration 2...")
+      final_ega_run <- EGA(data = final_stable_data, model = "glasso", verbose = FALSE)
+      # Skip the rest of the bootEGA/stability part for Iteration 3
+      
+    } else {
+      # If UVA left items (reduced_data is not NULL and has columns), proceed
+      print(paste("UVA Iteration 3 completed. Items kept:", ncol(uva_results_iter3$reduced_data)))
+      data_after_uva_iter3 <- uva_results_iter3$reduced_data
+      
+      print("Running bootEGA Iteration 3...")
+      # Pass the data *after* UVA (which now definitely has columns)
+      bootEGA_results_iter3 <- bootEGA(
+        data = data_after_uva_iter3, 
+        iter = 500, type = "parametric", model = "glasso", seed = 123
+      )
+      print("bootEGA Iteration 3 completed.")
+      
+      # Continue with stability check based on bootEGA_results_iter3
+      item_stability_proportions_iter3 <- bootEGA_results_iter3$stability$item.stability$item.stability$empirical.dimensions
+      stable_items_iter3 <- names(item_stability_proportions_iter3[item_stability_proportions_iter3 >= stability_threshold])
+      unstable_items_iter3 <- names(item_stability_proportions_iter3[item_stability_proportions_iter3 < stability_threshold])
+      
+      print(paste("Number of stable items (>= 0.75) after Iteration 3:", length(stable_items_iter3)))
+      print(paste("Number of unstable items (< 0.75) after Iteration 3:", length(unstable_items_iter3)))
+      
+      if (length(unstable_items_iter3) > 0) {
+        print("Unstable items identified in Iteration 3 (will be removed for final analysis):")
+        print(unstable_items_iter3)
+        warning("Items remained unstable after 3 iterations. Consider more iterations or review threshold/data.")
+      }
+      
+      # Define final data based on *stable* items from THIS iteration
+      if (length(stable_items_iter3) > 0) {
+        # Select stable columns from the data *after* UVA filtering
+        final_stable_data <- data_after_uva_iter3[, stable_items_iter3, drop = FALSE] 
+        print("Dimensions of final stable data after Iteration 3 (Dimensions x Stable Items):")
+        print(dim(final_stable_data))
+        print("Running final EGA on stable data from Iteration 3...")
+        final_ega_run <- EGA(data = final_stable_data, model = "glasso", verbose = FALSE)
+      } else {
+        # UVA left items, but bootEGA found none stable
+        stop("No stable items found by bootEGA in Iteration 3 after UVA filtering. Stopping.") 
+      }
+    } # End of the 'if (is.null || ncol == 0)' check
+  } # End of the 'else' block for Iteration 3
+  
+
+```
+
+### **5. Final Analysis and Reporting**
+
+
+```{r}
+
+# Ensure the final stable data and EGA results exist
+n_final_items <- ncol(final_stable_data)
+print(paste("Final number of stable items:", n_final_items))
+print(paste("Final EGA identified", final_ega_run$n.dim, "dimensions (clusters)."))
+
+# Extract final cluster assignments for the stable items
+# This is a named vector: names are item IDs (e.g., "item_5"), values are cluster numbers
+final_cluster_assignments <- final_ega_run$wc 
+
+# Map the final stable item names back to their original phrases
+final_stable_item_names <- names(final_cluster_assignments)
+
+# Helper function to extract the original index from the item name "item_X"
+get_index_from_item_name <- function(item_name) {
+  # Remove the "item_" prefix
+  num_str <- sub("^i", "", item_name) 
+  # Convert to integer, handle potential errors gracefully
+  index <- suppressWarnings(as.integer(num_str)) 
+  if (is.na(index)) { 
+    warning(paste("Could not parse index from item name:", item_name))
+    return(NA) 
+  } else { 
+    return(index) 
+  }
+}
+
+# Apply the function to get the original indices relative to the `unique_phrases` vector
+original_indices_in_unique_phrases <- sapply(final_stable_item_names, 
+                                             get_index_from_item_name, 
+                                             USE.NAMES = FALSE)
+
+# Retrieve the original text of the final stable phrases
+# Use the indices to subset the `unique_phrases` vector (which has 80 elements)
+final_stable_phrases_text <- unique_phrases[original_indices_in_unique_phrases]
+
+# --- 6. Group Final Stable Phrases by Estimated Cluster ---
+
+# Create a temporary data frame to organize results
+final_results_df <- data.frame(
+  ItemName = final_stable_item_names,
+  OriginalIndex = original_indices_in_unique_phrases,
+  EstimatedCluster = final_cluster_assignments,
+  PhraseText = final_stable_phrases_text,
+  stringsAsFactors = FALSE
+)
+
+# Sort by cluster and then maybe by original index for consistent output
+final_results_df <- final_results_df[order(final_results_df$EstimatedCluster, final_results_df$OriginalIndex), ]
+
+# Use split to create a list where each element is a vector of phrases for a cluster
+phrases_grouped_by_cluster <- split(final_results_df$PhraseText, final_results_df$EstimatedCluster)
+
+# --- Display the Final Grouped Phrases ---
+print("--- Final Stable Phrases Grouped by Estimated EGA Cluster ---")
+
+# Print in a more readable format
+for (cluster_num in names(phrases_grouped_by_cluster)) {
+  cat("\n=== Cluster", cluster_num, "===\n")
+  # Print each phrase prefixed with "* " on a new line
+  cat(paste("* ", phrases_grouped_by_cluster[[cluster_num]]), sep = "\n")
+}
+
+# Optional: Save the final results data frame
+# write.csv(final_results_df, "final_stable_items_and_clusters.csv", row.names = FALSE)
+
+```
+
+## **Centrality analysis**
+
+Network centrality indices (strength, closeness, betweenness, and expected influence) were estimated using the EBICglasso method. Standardized centrality scores were visualized to identify the most influential nodes. 
+
+```{r}
+library("qgraph")
+library("bootnet")
+
+
+Network <- estimateNetwork(final_stable_data,
+                           default = "EBICglasso", weighted = TRUE, tuning = 0.5)
+
+centralityPlot(Network, scale = c("z-scores"), 
+               include = c("Strength","Closeness","Betweenness","ExpectedInfluence"), 
+               theme_bw = TRUE, print = TRUE,
+               verbose = TRUE, weighted = TRUE, 
+               decreasing = T)
+
+
+print(paste("Strength centrality:", unique_phrases[9]))
+print(paste("Closeness centrality:", unique_phrases[19]))
+print(paste("Betweenness centrality:", unique_phrases[15]))
+print(paste("Expected Influence centrality:", unique_phrases[43]))
+
+```
+#### **Stability of centrality measures**
+
+```{r}
+#Estabilidade da centralidade
+boot <- bootnet(Network, nBoots = 1000, type = "case", 
+                statistics = c("strength", "closeness", "betweenness", "expectedInfluence"))
+
+plot(boot, statistics= c("strength","closeness","betweenness","expectedInfluence"))    
+
+#CS-coefficient
+corStability(boot)
+```
+
+
+```{r pressure, echo=FALSE}
+sessionInfo()
+```
+
+
