@@ -1,4 +1,5 @@
 # SNA: Semantic Network Analysis using R and Python for Content Validity Assessment
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) 
 
 An R Markdown script implementing a workflow for assessing the content validity and structural coherence of assessment items using semantic embeddings and network psychometric techniques. Inspired by the AI-GENIE methodology (Russell-Lasalandra, Christensen, & Golino, 2024), this script processes textual items, identifies redundancy and instability, estimates the underlying dimensional structure, and analyzes network centrality.
 
