@@ -64,6 +64,10 @@ reticulate::use_condaenv("sna_env", required = TRUE)
 # reticulate::use_virtualenv("/path/to/your/virtual/env", required = TRUE)
 ```
 
+### 5. Portuguese Version
+
+There is also a portuguese version of R script called semantic_net_analysis_PORTUGUES.rmd and  semantic_net_analysis_PORTUGUES.pdf.
+
 ## How it Works
 
 The script follows these primary steps:
